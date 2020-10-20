@@ -1,65 +1,67 @@
 
 <template>
   <div>
-    <v-card 
-      id="wpt-tooltip" 
-      role="tooltip" 
-      width="400" 
-      class="mx-auto mt-5 elevation-20 wpt-tooltip v-fade"
-      v-show="show">
-      <!-- tooltip arrow -->
-      <div id="arrow" data-popper-arrow></div>
-      <!-- tooltip title -->
-      <v-card-title v-html="wpTooltipTitle"></v-card-title>
-      <!-- tooltip text -->
-      <v-card-text v-html="wpTooltipText"></v-card-text>
-
-      <v-card-text>
-        <v-alert
-          v-model="alert"
-          border="left"
-          close-text="Close Alert"
-          color="deep-purple accent-4"
-          dark
-          dismissible
-          transition="scale-transition"
-          v-html="alertText"
-          class="overflow-y-auto"
-          style="max-height: 200px; font-size: 8px; line-height: 10px"
-        ></v-alert>
-      </v-card-text>
-
-      
-      
-      <v-divider></v-divider>
-      <!-- tooltip navigation controls -->
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn 
-          v-show="currentStep > 0"
-          color="info" 
-          @click="prev()">
-          prev
-        </v-btn>
-        <v-btn 
-          v-show="currentStep < steps.length-1"
-          color="info" 
-          @click="next()">
-          next
-        </v-btn>
-        <v-btn 
-        v-show="!(steps[boundedStep].modal || false)"
-        color="error" 
-        @click="quit()">
-        quit
-        </v-btn>
-      </v-card-actions>
-      
-    </v-card>
+    <div>
+      <v-card 
+        id="wpt-tooltip"
+        v-show="showTooltip"
+        class="mx-auto mt-5 elevation-20 wpt-tooltip v-fade "
+        style="margin-top:0px !important"
+        width="400" >
+        <!-- tooltip arrow -->
+        <div id="arrow" data-popper-arrow></div>
+        <!-- tooltip title -->
+        <v-card-title v-html="wpTooltipTitle"></v-card-title>
+        <!-- tooltip text -->
+        <v-card-text v-html="wpTooltipText"></v-card-text>
+        <!-- tooltip alert text -->
+        <v-card-text>
+          <v-alert
+            v-model="alert"
+            border="left"
+            close-text="Close Alert"
+            color="deep-purple accent-4"
+            dark
+            dismissible
+            transition="scale-transition"
+            v-html="alertText"
+            class="overflow-y-auto"
+            style="max-height: 200px; font-size: 8px; line-height: 10px"
+          ></v-alert>
+        </v-card-text>
+        
+        <v-divider></v-divider>
+        <!-- tooltip navigation controls -->
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn 
+            v-show="currentStep > 0"
+            color="info" 
+            @click="prev()">
+            prev
+          </v-btn>
+          <v-btn 
+            v-show="currentStep < steps.length-1"
+            color="info" 
+            @click="next()">
+            next
+          </v-btn>
+          <v-btn 
+          v-show="!(steps[boundedStep].modal || false)"
+          color="error" 
+          @click="quit()">
+          quit
+          </v-btn>
+        </v-card-actions>
+        
+      </v-card>
+    </div>
 
     <div 
       id="tourOverlay" 
-      class="wpt-highlight wp-hidden"
+      v-bind:style="{top: wptTop, left: wptLeft, width: wptWidth, height: wptHeight}"
+      v-show="showHighlight"
+      class="wpt-highlight "
       v-html="wpHighlightText">
     </div>
   </div>
@@ -79,15 +81,17 @@
       steps: steps,
       currentStep: -1,
       tooltip: null,
-      show: false,
+      showTooltip: true,
+      showHighlight: false,
       alert: false,
       alertText: "",
+      wptTop: 0, wptLeft: 0, wptWidth: 0, wptHeight:0,
     }),
     watch: {
       currentStep: {
         handler: function() {
           // hide a tooltip before moving next
-          this.show = false
+          this.showTooltip = false
           // since tooltip has a css fade-out transition for 300ms, wait until it's gone
           // before updating the tooltip appearance 
           setTimeout(function(){
@@ -98,8 +102,9 @@
       }
     },
     computed: {
-      theme: function() {
-        return this.$vuetify.theme.isDark ? "Light" : "Dark"
+      
+      tourInSession: function() {
+        return this.currentStep >= 0 && this.currentStep < this.steps.length
       },
       wpTooltipText: function() {
         const tip = steps[this.boundedStep].tooltip || {}
@@ -117,7 +122,10 @@
         s = s > -1 ? s : 0
         s = s < steps.length ? s : 0
         return s
-      }
+      },
+      theme: function() {
+        return this.$vuetify.theme.isDark ? "Light" : "Dark"
+      },
     },
     
     methods: {
@@ -127,22 +135,45 @@
       },
 
       highlight: function(target) {
-        let tourOverlay = document.querySelector("#tourOverlay")
-
         let rect = target.getBoundingClientRect()
         let scrollTop = window.pageYOffset
-
         let pad = 4 // px
-        tourOverlay.style.cssText += "; top: " + (scrollTop + rect.top - pad) + "px; left: " + (rect.left - pad) + "px; width: " + (rect.width + 2 * pad) + "px; height: " + (rect.height + 2 * pad) + "px"
+        this.wptTop = scrollTop + rect.top - pad + "px"
+        this.wptLeft = rect.left - pad + "px"
+        this.wptWidth = rect.width + 2 * pad + "px"
+        this.wptHeight = rect.height + 2 * pad + "px"
+      },
 
-        tourOverlay.focus()
+      createHighlight: function() {
+        // Necessary to attach overlay to the main element for correct positioning
+        const overlay = document.querySelector('.wpt-highlight');
+        const main = document.querySelector('main')
+        main.appendChild(overlay)
+      },
 
+      createTooltip: function() {
+        const overlay = document.querySelector('.wpt-highlight');
+        const tooltip = document.querySelector('.wpt-tooltip');
+        this.tooltip = createPopper(overlay, tooltip, {
+          //modifiers: [preventOverflow, flip],
+          modifiers: [{
+            name: 'offset',
+            options: {
+              offset: [0, 15],
+            },
+          }],
+        });
+        
+        overlay.addEventListener(getTransitionEndEventName(), onTooltipFinishMoving.bind(this), {once: true});
+      },
+
+      destroyTooltip: function() {
+        if (this.tooltip) {
+          this.tooltip.destroy();
+          this.tooltip = null;
+        }
       },
       
-      tourInSession: function() {
-        return this.currentStep >= 0 && this.currentStep < this.steps.length
-      },
-
       next: function() {
         this.currentStep++
       },
@@ -151,38 +182,44 @@
         this.currentStep--
       },
 
+      init: function() {
+        this.showHighlight = true
+        this.showTooltip = true
+        this.currentStep = 0
+      },
+
       quit: function() {
-        // Allow quit if not modal or if is last step
+        // Allow quit anytime if not modal or if is last step
         if (!(this.steps[this.boundedStep].modal || false) || this.currentStep == this.steps.length-1) {
           this.currentStep = -1
+          this.destroyTooltip()
         }
       },
 
       tour: function(start) {
-
+        
         if (start === 'start') {
-          this.currentStep = 0
+          this.init()
         }
 
-        const tourOverlay = document.querySelector(".wpt-highlight")
-
+        // If current step # is in bounds of steps array
         if (this.currentStep >= 0 && this.currentStep <= this.steps.length - 1) {
 
-          let target = document.querySelector(this.steps[this.currentStep].target)
-          
-          tourOverlay.classList.remove("wpt-hidden")
-          
-          //this.show = false
+          // Make highlight element visible (styled in css)
+          this.showHighlight = true
 
+          // Scroll window to put target element in view
+          let target = document.querySelector(this.steps[this.currentStep].target)
+          // TODO: Need to validate target before proceeding
           this.$vuetify.goTo(target, {
             duration: 500,
             offset: 10,
             easing: 'easeInOutCubic',
           })
-
+          // Highlight target element
           this.highlight(target)
 
-          // evaluate onStepChange event handler
+          // If user specifies a 'handler' property as a function, evaluate it here
           let onStepChange = this.steps[this.currentStep].handler
           if (typeof(onStepChange) === 'function') {
             onStepChange = onStepChange.bind(this)
@@ -190,8 +227,9 @@
           }
 
         } else {
-          tourOverlay.classList.add("wpt-hidden")
-          this.show = false
+          // If current step out of bounds then
+          this.showHighlight = false
+          this.showTooltip = false
         }
 
       }
@@ -202,20 +240,11 @@
       window.addEventListener("mouseup", onClick.bind(this))
       window.addEventListener("keydown", onKeyDown.bind(this))
       window.addEventListener("resize", onResize.bind(this))
-
-      const overlay = document.querySelector('.wpt-highlight');
-      const tooltip = document.querySelector('.wpt-tooltip');
       
-      // Necessary to attache overlay to root for positioning
-      document.body.appendChild(overlay)
-
-      this.tooltip = createPopper(overlay, tooltip, {
-        //modifiers: [preventOverflow, flip],
-      });
-      
-      overlay.addEventListener(getTransitionEndEventName(), onTooltipFinishMoving.bind(this), {once: true});
-      
+      this.createHighlight()
+      this.createTooltip()      
       this.tour('start')
+      // this.currentStep = 0
     }
   }
 
@@ -238,7 +267,7 @@
 
     e = e || window.event;
     // Arrow or escape wil tour is in session
-    if (this.tourInSession()) {
+    if (this.tourInSession) {
       console.warn('Propegation of some keys prevented while waypoint is active')
       switch (e.key) {
       case 'ArrowUp':
@@ -284,7 +313,7 @@
       console.log(e.propertyName)
       // Cancel tooltip if not defined in props
       if (this.currentStep >=0 && typeof(this.steps[this.currentStep].tooltip) !== 'undefined') {
-        this.show = true
+        this.showTooltip = true
         this.tooltip.update()
       }
       e.target.addEventListener(getTransitionEndEventName(), onTooltipFinishMoving.bind(this), {once: true})
@@ -448,7 +477,7 @@
 
   .wpt-tooltip {
     z-index: 10003;
-    /* margin: 15px !important; */
+    /* margin-top: 0px !important; */
   }
 
   .wpt-tooltip[data-popper-reference-hidden] {
@@ -463,21 +492,19 @@
     position: absolute;
     width: 8px;
     height: 8px;
+    z-index: -1;
     /* z-index: 10002; */
     background: inherit;
-    
   }
 
   div[data-popper-arrow]::before {
     content: '';
     transform: rotate(45deg);
-    /* box-shadow: 0 0 1px 1px rgb(0, 0, 255); */
   }
 
   .wpt-tooltip[data-popper-placement^='top'] > div[data-popper-arrow] {
     bottom: -4px;
-  /*   box-shadow: 0 0 1px 1px rgb(0, 0, 255);
-    */}
+  }
 
   .wpt-tooltip[data-popper-placement^='bottom'] > div[data-popper-arrow] {
     top: -4px;

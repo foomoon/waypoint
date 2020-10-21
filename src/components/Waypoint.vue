@@ -8,8 +8,7 @@
         class="mx-auto mt-5 elevation-20 wpt-tooltip v-fade "
         style="margin-top:0px !important"
         width="400" >
-        <!-- tooltip arrow -->
-        <div id="arrow" data-popper-arrow></div>
+
         <!-- tooltip title -->
         <v-card-title v-html="wpTooltipTitle"></v-card-title>
         <!-- tooltip text -->
@@ -53,7 +52,8 @@
           quit
           </v-btn>
         </v-card-actions>
-        
+        <!-- tooltip arrow -->
+        <div id="arrow" data-popper-arrow></div>
       </v-card>
     </div>
 
@@ -81,7 +81,7 @@
       steps: steps,
       currentStep: -1,
       tooltip: null,
-      showTooltip: true,
+      showTooltip: false,
       showHighlight: false,
       alert: false,
       alertText: "",
@@ -90,12 +90,19 @@
     watch: {
       currentStep: {
         handler: function() {
+
+          if (this.currentStep == -1 || this.currentStep >= this.steps.length) {
+            this.quit();
+          }
+          // 
+          var step = this.steps[this.currentStep]
+
           // hide a tooltip before moving next
           this.showTooltip = false
           // since tooltip has a css fade-out transition for 300ms, wait until it's gone
           // before updating the tooltip appearance 
           setTimeout(function(){
-            this.tour();
+            this.tour(step);
           }.bind(this), 300);
         },
         // deep: true
@@ -129,12 +136,8 @@
     },
     
     methods: {
-    
-      toggleTheme: function() {
-        this.$vuetify.theme.isDark = !this.$vuetify.theme.isDark
-      },
 
-      highlight: function(target) {
+      highlightTarget: function(target) {
         let rect = target.getBoundingClientRect()
         let scrollTop = window.pageYOffset
         let pad = 4 // px
@@ -142,6 +145,10 @@
         this.wptLeft = rect.left - pad + "px"
         this.wptWidth = rect.width + 2 * pad + "px"
         this.wptHeight = rect.height + 2 * pad + "px"
+      },
+
+      isValidTarget: function(target) {
+        return target !== null
       },
 
       createHighlight: function() {
@@ -183,9 +190,9 @@
       },
 
       init: function() {
+        this.currentStep = 0
         this.showHighlight = true
         this.showTooltip = true
-        this.currentStep = 0
       },
 
       quit: function() {
@@ -193,46 +200,49 @@
         if (!(this.steps[this.boundedStep].modal || false) || this.currentStep == this.steps.length-1) {
           this.currentStep = -1
           this.destroyTooltip()
+          this.showHighlight = false
+          this.showTooltip = false
         }
       },
 
-      tour: function(start) {
-        
-        if (start === 'start') {
-          this.init()
+      tour: function(step) {
+
+        if (!this.isValidTarget(step.target)) {
+          return
+        }
+        var target = document.querySelector(step.target)
+
+        if (this.tooltip === null) {
+          this.createTooltip()
+          this.showTooltip = true
         }
 
         // If current step # is in bounds of steps array
-        if (this.currentStep >= 0 && this.currentStep <= this.steps.length - 1) {
+        // if (this.currentStep >= 0 && this.currentStep <= this.steps.length - 1) {
 
           // Make highlight element visible (styled in css)
           this.showHighlight = true
-
+          
           // Scroll window to put target element in view
-          let target = document.querySelector(this.steps[this.currentStep].target)
-          // TODO: Need to validate target before proceeding
           this.$vuetify.goTo(target, {
             duration: 500,
             offset: 10,
             easing: 'easeInOutCubic',
           })
           // Highlight target element
-          this.highlight(target)
+          this.highlightTarget(target)
 
           // If user specifies a 'handler' property as a function, evaluate it here
-          let onStepChange = this.steps[this.currentStep].handler
+          let onStepChange = step.handler
           if (typeof(onStepChange) === 'function') {
             onStepChange = onStepChange.bind(this)
             onStepChange()
           }
 
-        } else {
-          // If current step out of bounds then
-          this.showHighlight = false
-          this.showTooltip = false
-        }
-
-      }
+      },
+      toggleTheme: function() {
+        this.$vuetify.theme.isDark = !this.$vuetify.theme.isDark
+      },
     },
 
     mounted() {
@@ -241,10 +251,9 @@
       window.addEventListener("keydown", onKeyDown.bind(this))
       window.addEventListener("resize", onResize.bind(this))
       
-      this.createHighlight()
-      this.createTooltip()      
-      this.tour('start')
-      // this.currentStep = 0
+      this.createHighlight()     
+      this.init()
+      //this.currentStep = 9
     }
   }
 
@@ -345,7 +354,7 @@
         title: "Welcome to Waypoint!",
         content: "This is an early development <b>tour</b> component for <a href='https://vuejs.org'>Vue.js</a> and themed with <a href='https://vuetifyjs.com/en/'>Vuetify.js</a>. Waypoint is designed to be beautiful, performant, lightweight and declarative.  It should be flexible enough to cover a wide variety of needs.",
       },
-      modal: true,
+      modal: false,
     },
     
     {
@@ -492,13 +501,13 @@
     position: absolute;
     width: 8px;
     height: 8px;
-    z-index: -1;
-    /* z-index: 10002; */
-    background: inherit;
+    background: inherit; /* ensures arrow matches tooltip with theme change */
+    visibility: hidden; /* ensures arrow container is not visible */
   }
 
   div[data-popper-arrow]::before {
-    content: '';
+    visibility: visible; /* ensures arrow is visible */
+    content: ''; 
     transform: rotate(45deg);
   }
 

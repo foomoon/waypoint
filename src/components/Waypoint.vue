@@ -214,7 +214,7 @@
 
       tour: function(step) {
 
-        if (!this.isValidTarget(step.target)) {
+        if (typeof(step)==='undefined' || !this.isValidTarget(step.target)) {
           return
         }
         var target = document.querySelector(step.target)

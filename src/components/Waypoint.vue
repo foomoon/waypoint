@@ -103,16 +103,16 @@
             this.quit();
             return
           }
-          // 
-          this.step = this.steps[this.stepCount]
-
+          
           // hide a tooltip before moving next
           this.showTooltip = false
+
           // since tooltip has a css fade-out transition for 100ms, wait until it's gone
           // before updating the tooltip appearance 
           setTimeout(function(){
+            this.step = this.steps[this.stepCount]
             this.tour(this.step);
-          }.bind(this), 300);
+          }.bind(this), 150);
         },
         // deep: true
       }

@@ -318,7 +318,8 @@
   function onResize() {
     // Make sure highlight stays with target if it changes
     if (this.tourInSession) {
-      this.tour()
+      let step = this.steps[this.currentStep]
+      this.tour(step)
     }
   }
 
@@ -373,10 +374,11 @@
     width: 0;
     height: 0;
     transition:
-      top 0.3s, 
-      left 0.3s, 
-      width 0.3s, 
-      height 0.3s;
+      top 0.1s, 
+      left 0.1s, 
+      width 0.1s, 
+      height 0.1s;
+    transition-timing-function: ease-in-out;
   }
 
   .wpt-hidden {

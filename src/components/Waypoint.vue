@@ -34,13 +34,13 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn 
-            v-show="currentStep > 0"
+            v-show="stepCount > 0"
             color="info" 
             @click="prev()">
             prev
           </v-btn>
           <v-btn 
-            v-show="currentStep < steps.length-1"
+            v-show="stepCount < steps.length-1"
             color="info" 
             @click="next()">
             next
@@ -86,7 +86,8 @@
       }
     },
     data: () => ({
-      currentStep: -1,
+      step: {},
+      stepCount: -1,
       tooltip: null,
       showTooltip: false,
       showHighlight: false,
@@ -95,21 +96,22 @@
       wptTop: 0, wptLeft: 0, wptWidth: 0, wptHeight:0,
     }),
     watch: {
-      currentStep: {
+      stepCount: {
         handler: function() {
 
-          if (this.currentStep == -1 || this.currentStep >= this.steps.length) {
+          if (this.stepCount == -1 || this.stepCount >= this.steps.length) {
             this.quit();
+            return
           }
           // 
-          var step = this.steps[this.currentStep]
+          this.step = this.steps[this.stepCount]
 
           // hide a tooltip before moving next
           this.showTooltip = false
-          // since tooltip has a css fade-out transition for 300ms, wait until it's gone
+          // since tooltip has a css fade-out transition for 100ms, wait until it's gone
           // before updating the tooltip appearance 
           setTimeout(function(){
-            this.tour(step);
+            this.tour(this.step);
           }.bind(this), 300);
         },
         // deep: true
@@ -118,21 +120,21 @@
     computed: {
       
       tourInSession: function() {
-        return this.currentStep >= 0 && this.currentStep < this.steps.length
+        return this.stepCount >= 0 && this.stepCount < this.steps.length
       },
       wpTooltipText: function() {
-        const tip = this.steps[this.boundedStep].tooltip || {}
+        const tip = this.step.tooltip || {}
         return tip.content || "Default Text"
       },
       wpTooltipTitle: function() {
-        const tip = this.steps[this.boundedStep].tooltip || {}
+        const tip = this.step.tooltip || {}
         return tip.title || "Default Title"
       },
       wpHighlightText: function() {
-        return this.steps[this.boundedStep].content || ""
+        return this.step.content || ""
       },
       boundedStep: function() {
-        let s = this.currentStep
+        let s = this.stepCount
         s = s > -1 ? s : 0
         s = s < this.steps.length ? s : 0
         return s
@@ -189,23 +191,23 @@
       },
       
       next: function() {
-        this.currentStep++
+        this.stepCount++
       },
 
       prev: function() {
-        this.currentStep--
+        this.stepCount--
       },
 
       init: function() {
-        this.currentStep = 0
+        this.stepCount = 0
         this.showHighlight = true
         this.showTooltip = true
       },
 
       quit: function() {
         // Allow quit anytime if not modal or if is last step
-        if (!(this.steps[this.boundedStep].modal || false) || this.currentStep == this.steps.length-1) {
-          this.currentStep = -1
+        if (!(this.steps[this.boundedStep].modal || false) || this.stepCount == this.steps.length-1) {
+          this.stepCount = -1
           this.destroyTooltip()
           this.showHighlight = false
           this.showTooltip = false
@@ -225,7 +227,7 @@
         }
 
         // If current step # is in bounds of steps array
-        // if (this.currentStep >= 0 && this.currentStep <= this.steps.length - 1) {
+        // if (this.stepCount >= 0 && this.stepCount <= this.steps.length - 1) {
 
           // Make highlight element visible (styled in css)
           this.showHighlight = true
@@ -260,7 +262,7 @@
       
       this.createHighlight()     
       this.init()
-      //this.currentStep = 9
+      //this.stepCount = 9
     }
   }
 
@@ -270,10 +272,10 @@
   function onHashChange() {
     let route = window.location.hash.replace(/#\/?/, '')
     const isRoute = (element) => element.target === route
-    let currentStepSelected = this.steps.findIndex(isRoute)
+    let stepCountSelected = this.steps.findIndex(isRoute)
 
-    if (currentStepSelected >= 0) {
-      this.currentStep = currentStepSelected
+    if (stepCountSelected >= 0) {
+      this.stepCount = stepCountSelected
     }
     
     window.location.hash = ''
@@ -318,7 +320,7 @@
   function onResize() {
     // Make sure highlight stays with target if it changes
     if (this.tourInSession) {
-      let step = this.steps[this.currentStep]
+      let step = this.steps[this.stepCount]
       this.tour(step)
     }
   }
@@ -329,7 +331,7 @@
     setTimeout(function() {
       console.log(e.propertyName)
       // Cancel tooltip if not defined in props
-      if (this.currentStep >=0 && typeof(this.steps[this.currentStep].tooltip) !== 'undefined') {
+      if (this.stepCount >=0 && typeof(this.steps[this.stepCount].tooltip) !== 'undefined') {
         this.showTooltip = true
         this.tooltip.update()
       }
@@ -411,6 +413,10 @@
     visibility: visible; /* ensures arrow is visible */
     content: ''; 
     transform: rotate(45deg);
+  }
+
+  .wpt-tooltip[data-popper-reference-hidden] div[data-popper-arrow]::before {
+    visibility: hidden;
   }
 
   .wpt-tooltip[data-popper-placement^='top'] > div[data-popper-arrow] {

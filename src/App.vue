@@ -31,7 +31,7 @@
 
     <v-main>
       <Skeleton/>
-      <Waypoint :steps="steps"/>
+      <Waypoint :steps="steps" :stepNum="num"/>
     </v-main>
   </v-app>
 </template>
@@ -50,9 +50,26 @@ export default {
 
   data: () => ({
     steps: steps,
+    num: 0
   }),
+
+  mounted() {
+    window.addEventListener('hashchange', onHashChange.bind(this))
+  }
 };
 
+
+  // handle routing
+  function onHashChange() {
+    let route = window.location.hash.replace(/#\/?/, '')
+    const isRoute = (element) => element.target === route
+    let stepCountSelected = this.steps.findIndex(isRoute)
+
+    if (stepCountSelected >= 0) {
+      this.num = stepCountSelected
+    }
+
+  }
 
   var steps = [
     {

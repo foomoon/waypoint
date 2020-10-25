@@ -2,13 +2,23 @@
 <template>
   <div>
     <div>
+       <!-- tooltip (Note: if margin not set here, popper will illicit a warning) -->
       <v-card 
         id="wpt-tooltip"
         v-show="showTooltip"
         class="mx-auto mt-5 elevation-20 wpt-tooltip v-fade "
-        style="margin-top:0px !important"
+        style="margin-top:0px !important; margin-left:0px !important; margin-right:0px !important; margin-bottom:0px !important;"
         width="400" >
-
+        <!-- tooltip nav bar -->
+        <v-app-bar dense flat>
+          <v-spacer></v-spacer>
+          <v-btn 
+          v-show="!(steps[boundedStep].modal || false)"
+          @click="quit()"
+          icon>
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-app-bar>
         <!-- tooltip title -->
         <v-card-title v-html="wpTooltipTitle"></v-card-title>
         <!-- tooltip text -->
@@ -45,12 +55,12 @@
             @click="next()">
             next
           </v-btn>
-          <v-btn 
+          <!-- <v-btn 
           v-show="!(steps[boundedStep].modal || false)"
           color="error" 
           @click="quit()">
           quit
-          </v-btn>
+          </v-btn> -->
         </v-card-actions>
         <!-- tooltip arrow -->
         <div id="arrow" data-popper-arrow></div>
@@ -77,7 +87,12 @@
 
   export default {
     name: 'Waypoint',
+    
     props: {
+      stepNum: {
+        default: 0,
+        type: Number
+      },
       steps: {
         default: function () {
           return [{target: 'body', tooltip: {title: 'Default', content:'Oops, you forgot to provide a valid steps property'}}]
@@ -96,6 +111,9 @@
       wptTop: 0, wptLeft: 0, wptWidth: 0, wptHeight:0,
     }),
     watch: {
+      stepNum: function() {
+        this.stepCount = this.stepNum
+      },
       stepCount: {
         handler: function() {
 
@@ -107,7 +125,7 @@
           // hide a tooltip before moving next
           this.showTooltip = false
 
-          // since tooltip has a css fade-out transition for 100ms, wait until it's gone
+          // since tooltip has a css fade-out transition of 100ms, wait until it's gone
           // before updating the tooltip appearance 
           setTimeout(function(){
             this.step = this.steps[this.stepCount]
@@ -199,9 +217,9 @@
       },
 
       init: function() {
-        this.stepCount = 0
+        this.stepCount = this.stepNum || 0
         this.showHighlight = true
-        this.showTooltip = true
+        this.showTooltip = typeof(this.steps[this.stepCount].tooltip) !== 'undefined'
       },
 
       quit: function() {
@@ -221,7 +239,7 @@
         }
         var target = document.querySelector(step.target)
 
-        if (this.tooltip === null) {
+        if (this.tooltip === null && typeof(step.tooltip) !== 'undefined') {
           this.createTooltip()
           this.showTooltip = true
         }
@@ -255,54 +273,43 @@
     },
 
     mounted() {
-      window.addEventListener('hashchange', onHashChange.bind(this))
       window.addEventListener("mouseup", onClick.bind(this))
       window.addEventListener("keydown", onKeyDown.bind(this))
       window.addEventListener("resize", onResize.bind(this))
-      
       this.createHighlight()     
       this.init()
-      //this.stepCount = 9
     }
   }
 
 
 
-  // handle routing
-  function onHashChange() {
-    let route = window.location.hash.replace(/#\/?/, '')
-    const isRoute = (element) => element.target === route
-    let stepCountSelected = this.steps.findIndex(isRoute)
 
-    if (stepCountSelected >= 0) {
-      this.stepCount = stepCountSelected
-    }
-    
-    window.location.hash = ''
-  }
 
   function onKeyDown(e) {
 
     e = e || window.event;
     // Arrow or escape wil tour is in session
     if (this.tourInSession) {
-      console.warn('Propegation of some keys prevented while waypoint is active')
+      //console.warn('Propegation of some keys prevented while waypoint is active')
       switch (e.key) {
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        e.preventDefault()
-        this.prev()
-        break;
-      case 'ArrowDown':
-      case 'ArrowRight':
-        e.preventDefault()
-        this.next()
-        break;
-      case 'Escape':
-        e.preventDefault()
-        this.quit()
-        break;
-      default:
+        case 'Backspace':
+        case 'ArrowUp':
+        case 'ArrowLeft':
+          e.preventDefault()
+          this.prev()
+          break;
+        case 'Enter':
+        case ' ':
+        case 'ArrowDown':
+        case 'ArrowRight':
+          e.preventDefault()
+          this.next()
+          break;
+        case 'Escape':
+          e.preventDefault()
+          this.quit()
+          break;
+        default:
       }
     }
     
@@ -329,7 +336,6 @@
   
     // Fire after tooltip has stopped moving
     setTimeout(function() {
-      console.log(e.propertyName)
       // Cancel tooltip if not defined in props
       if (this.stepCount >=0 && typeof(this.steps[this.stepCount].tooltip) !== 'undefined') {
         this.showTooltip = true
@@ -389,7 +395,7 @@
   }
 
   .wpt-tooltip {
-    z-index: 10003;
+    z-index: 10003 !important;
     /* margin-top: 0px !important; */
   }
 
@@ -402,6 +408,8 @@
   /* popper.js arrow */
   div[data-popper-arrow],
   div[data-popper-arrow]::before {
+    z-index: -1 !important;
+    margin-top: 0 !important;
     position: absolute;
     width: 8px;
     height: 8px;
@@ -439,7 +447,7 @@
   /* fix for transition so popper.js renders correctly */
   .v-fade {
     display: inherit !important; /* override v-show display: none */
-    transition: opacity 0.3s;
+    transition: opacity 0.2s;
   }
 
   .v-fade[style*="display: none;"] {

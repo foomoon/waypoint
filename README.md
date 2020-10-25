@@ -1,4 +1,5 @@
 # waypoint
+Try a [live demo](https://foomoon.github.io/waypoint/)
 
 ## Project setup
 ```

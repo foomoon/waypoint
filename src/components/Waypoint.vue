@@ -8,7 +8,12 @@
         v-show="showTooltip"
         class="mx-auto mt-5 elevation-20 wpt-tooltip v-fade "
         style="margin-top:0px !important; margin-left:0px !important; margin-right:0px !important; margin-bottom:0px !important;"
-        width="400" >
+        width="400" 
+        v-touch="{
+          left: () => swipe('left'),
+          right: () => swipe('right'),
+        }"
+        >
         <!-- tooltip nav bar -->
         <v-app-bar dense flat>
           <v-spacer></v-spacer>
@@ -38,6 +43,9 @@
             style="max-height: 200px; font-size: 8px; line-height: 10px"
           ></v-alert>
         </v-card-text>
+
+        <!-- default slot -->
+        <slot></slot>
         
         <v-divider></v-divider>
         <!-- tooltip navigation controls -->
@@ -72,7 +80,12 @@
       v-bind:style="{top: wptTop, left: wptLeft, width: wptWidth, height: wptHeight}"
       v-show="showHighlight"
       class="wpt-highlight "
-      v-html="wpHighlightText">
+      v-html="wpHighlightText"
+      v-touch="{
+          left: () => swipe('left'),
+          right: () => swipe('right'),
+        }"
+      >
     </div>
   </div>
 
@@ -114,25 +127,8 @@
       stepNum: function() {
         this.stepCount = this.stepNum
       },
-      stepCount: {
-        handler: function() {
-
-          if (this.stepCount == -1 || this.stepCount >= this.steps.length) {
-            this.quit();
-            return
-          }
-          
-          // hide a tooltip before moving next
-          this.showTooltip = false
-
-          // since tooltip has a css fade-out transition of 100ms, wait until it's gone
-          // before updating the tooltip appearance 
-          setTimeout(function(){
-            this.step = this.steps[this.stepCount]
-            this.tour(this.step);
-          }.bind(this), 150);
-        },
-        // deep: true
+      stepCount: function() {
+        this.tour()
       }
     },
     computed: {
@@ -166,12 +162,17 @@
 
       highlightTarget: function(target) {
         let rect = target.getBoundingClientRect()
-        let scrollTop = window.pageYOffset
-        let pad = 4 // px
+        let scrollTop = this.isVisibleTarget(target) ? window.pageYOffset : 0
+        let pad = this.isVisibleTarget(target) ? 4 : 0 // px
         this.wptTop = scrollTop + rect.top - pad + "px"
         this.wptLeft = rect.left - pad + "px"
         this.wptWidth = rect.width + 2 * pad + "px"
         this.wptHeight = rect.height + 2 * pad + "px"
+      },
+
+      isVisibleTarget: function(target) {
+        let targetStyle = window.getComputedStyle(target) || {}
+        return targetStyle.display !== "none" 
       },
 
       isValidTarget: function(target) {
@@ -216,10 +217,23 @@
         this.stepCount--
       },
 
+      swipe: function(direction) {
+        switch(direction) {
+          case 'left':
+            this.next()
+            break;
+          case 'right':
+            this.prev()
+            break;
+        }
+      },
+
       init: function() {
         this.stepCount = this.stepNum || 0
-        this.showHighlight = true
-        this.showTooltip = typeof(this.steps[this.stepCount].tooltip) !== 'undefined'
+        if (this.stepCount > -1) {
+          this.showHighlight = true
+          this.showTooltip = typeof(this.steps[this.stepCount].tooltip) !== 'undefined'
+        }
       },
 
       quit: function() {
@@ -232,7 +246,25 @@
         }
       },
 
-      tour: function(step) {
+      tour: function() {
+        if (this.stepCount == -1 || this.stepCount >= this.steps.length) {
+            this.quit();
+            return
+          }
+          
+          // hide a tooltip before moving next
+          this.showTooltip = false
+
+          // since tooltip has a css fade-out transition of 100ms, wait until it's gone
+          // before updating the tooltip appearance 
+          setTimeout(function(){
+            this.step = this.steps[this.stepCount]
+            this._tour(this.step);
+            this.$emit('next', this) // emit a custom event called 'next' on each tour step
+          }.bind(this), 150);
+      },
+
+      _tour: function(step) {
 
         if (typeof(step)==='undefined' || !this.isValidTarget(step.target)) {
           return
@@ -244,27 +276,24 @@
           this.showTooltip = true
         }
 
-        // If current step # is in bounds of steps array
-        // if (this.stepCount >= 0 && this.stepCount <= this.steps.length - 1) {
+        // Make highlight element visible (styled in css)
+        this.showHighlight = true
+        
+        // Scroll window to put target element in view
+        this.$vuetify.goTo(target, {
+          duration: 300,
+          offset: 10,
+          easing: 'easeInOutCubic',
+        })
+        // Highlight target element
+        this.highlightTarget(target)
 
-          // Make highlight element visible (styled in css)
-          this.showHighlight = true
-          
-          // Scroll window to put target element in view
-          this.$vuetify.goTo(target, {
-            duration: 500,
-            offset: 10,
-            easing: 'easeInOutCubic',
-          })
-          // Highlight target element
-          this.highlightTarget(target)
-
-          // If user specifies a 'handler' property as a function, evaluate it here
-          let onStepChange = step.handler
-          if (typeof(onStepChange) === 'function') {
-            onStepChange = onStepChange.bind(this)
-            onStepChange()
-          }
+        // If user specifies a 'handler' property as a function, evaluate it here
+        let onStepChange = step.handler
+        if (typeof(onStepChange) === 'function') {
+          onStepChange = onStepChange.bind(this)
+          onStepChange()
+        }
 
       },
       toggleTheme: function() {
@@ -327,8 +356,7 @@
   function onResize() {
     // Make sure highlight stays with target if it changes
     if (this.tourInSession) {
-      let step = this.steps[this.stepCount]
-      this.tour(step)
+      this.tour()
     }
   }
 

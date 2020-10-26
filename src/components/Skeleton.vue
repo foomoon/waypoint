@@ -12,6 +12,7 @@
       
         <v-skeleton-loader 
           id="step1" 
+          ref="step1"
           v-bind="attrs" 
           type="card-avatar, article, actions">
         </v-skeleton-loader>

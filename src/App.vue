@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <!-- app bar -->
-      <v-app-bar app color="primary" dark>
+      <v-app-bar app color="primary" dark ref="appBar">
         <div class="d-flex align-center">
             <v-icon 
               color="blue lighten-2" 
@@ -30,13 +30,16 @@
       </v-app-bar>
 
     <v-main>
+ 
       <Skeleton/>
-      <Waypoint :steps="steps" :stepNum="num"/>
+      <Waypoint id="wpt-component" :steps="steps" :stepNum="num" @next="exampleHook"></Waypoint>
+
     </v-main>
   </v-app>
 </template>
 
 <script>
+
 import Skeleton from './components/Skeleton';
 import Waypoint from './components/Waypoint';
 
@@ -50,17 +53,25 @@ export default {
 
   data: () => ({
     steps: steps,
-    num: 0
+    num: -1
   }),
+
+  methods: {
+    exampleHook: function(wpt) {
+      console.log(wpt.stepCount + " is current step count")
+    }
+  },
 
   mounted() {
     window.addEventListener('hashchange', onHashChange.bind(this))
+    this.num = 0
   }
 };
 
 
   // handle routing
   function onHashChange() {
+    console.log(this.num)
     let route = window.location.hash.replace(/#\/?/, '')
     const isRoute = (element) => element.target === route
     let stepCountSelected = this.steps.findIndex(isRoute)
@@ -69,6 +80,7 @@ export default {
       this.num = stepCountSelected
     }
 
+    //window.location.hash = ''
   }
 
   var steps = [
